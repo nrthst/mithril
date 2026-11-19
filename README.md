@@ -132,10 +132,10 @@ Node.js comes with `npm`, which is the only other tool used.
 
 **Without git:** on the GitHub page, click **Code → Download ZIP** and unzip it. The bot is the `slack-of-the-rings` folder inside.
 
-**With git:**
+**With git:** click **Code** on the GitHub page, copy the address it shows, and clone it:
 
 ```bash
-git clone https://github.com/nrthst/mithril.git
+git clone <the address you copied>
 cd mithril/slack-of-the-rings
 ```
 
@@ -151,7 +151,7 @@ If the link doesn't work, go to [api.slack.com/apps](https://api.slack.com/apps)
 
 ### 3. Install and start the bot
 
-**On a Mac, by double-click:** open `start.command` in the `slack-of-the-rings` folder. The first run installs the dependencies, offers to open the Slack link from step 2, and asks for your two tokens. After that it just starts the bot. If macOS blocks the file, right-click it and choose **Open**.
+**On a Mac, by double-click:** open `start.command` in the `slack-of-the-rings` folder. The first run installs the dependencies, offers to open the Slack link from step 2, and asks for your two tokens. After that it just starts the bot. If macOS blocks the file, right-click it and choose **Open**. On newer versions of macOS, allow it under **System Settings → Privacy & Security** instead.
 
 **On any platform, from a terminal** opened in the `slack-of-the-rings` folder:
 
@@ -202,7 +202,7 @@ To change a token, run `npm run setup` again. It asks before replacing an existi
 
 [The One API](https://the-one-api.dev) is a free, community-run database of *The Lord of the Rings*: the books and their chapters, the films, the characters, and the dialogue of the film trilogy. Slack of the Rings uses it in two ways.
 
-**As the reference for every hand-picked line.** Each line a character says in answer to a situation (139 at last count) was compared against the API for speaker and wording before it went in. Lines the API could not confirm were left out. This is why Gimli has a part: "That still only counts as one!" is his line, not Legolas's, so he cuts in on `/legolas` to say it.
+**As the reference for every hand-picked line.** Every film line the bot ships with (139 at last count, across the replies to situations, the built-in pools, the pep talks and `/wisdom`) was compared against the API for speaker and wording before it went in. Lines the API could not confirm were left out. This is why Gimli has a part: "That still only counts as one!" is his line, not Legolas's, so he cuts in on `/legolas` to say it.
 
 **As a bigger pool of random quotes, if you want one.** With a token in `.env`, each character's general pool grows from a couple of dozen lines to many more. In testing that came to 137 for Frodo, 173 for Gandalf, 39 for Legolas and 126 for Gollum.
 
@@ -240,12 +240,12 @@ Film dialogue is written to be heard in its scene, and the API's transcription h
 | Fragments: under 15 characters or under 4 words | “Sam!” |
 | Speeches over 280 characters | |
 | Short questions, which mean nothing out of context | “What did you say?” |
-| Drawn-out shouts | “Nooooo!” |
+| Drawn-out shouts and hisses | “Yessssss” |
 | Lines with transcription damage, such as a lost accent | “Nazg'l” |
-| The grimmest lines: killing, murder and the like | “Kill them both!” |
+| The grimmest lines: killing, murder and the like | “No! That would kill us! Kill us!” |
 | Duplicates | |
 
-Small slips are repaired instead: doubled spaces, a missing space after a full stop (“rises.Blood”), a capital I typed for an l (“Iet”), and stray stage directions. A few oddities still get through, mostly two words run together.
+Small slips are repaired instead: doubled spaces, a missing space after a full stop (“rises.Blood”), a capital I typed for an l (“Iet”), and stray stage directions. The filter is a set of simple rules, so the odd awkward line may still get through.
 
 The grim-line filter is one line, `TOO_GRIM` in `quotes.js`, if you would rather have them.
 
@@ -515,10 +515,11 @@ npm test
 | Slack says the command failed or the app did not respond (often shown as `dispatch_failed`) | The bot isn't running | Start it again |
 | `The .env file needs attention` | A token is missing or in the wrong slot | Run `npm run setup` |
 | Slack says the command “is not a valid command” | It isn't registered in your Slack app | Compare the app's **Slash Commands** page with `manifest.json` |
-| `Failed to start` followed by an error from Slack | Usually a token that was revoked, or that belongs to a different app | Copy fresh tokens from the Slack app and run `npm run setup` |
+| `Failed to start: An API error occurred: invalid_auth` | Slack rejected a token: it is mistyped, was revoked, or belongs to a different app | Copy fresh tokens from the Slack app and run `npm run setup` |
+| Commands work only some of the time | A second copy of the bot is running with the same tokens, and Slack sends each command to just one of them | Stop the other copy |
 | `Quotes: built-in quotes` although you set a The One API token | The API couldn't be used | Read the line above it; see [When the API is unavailable](#when-the-api-is-unavailable) |
 | `Slack of the Rings needs Node.js 18 or newer` | Node.js isn't installed, or isn't on the path | Install it from [nodejs.org](https://nodejs.org) |
-| macOS won't open `start.command` | It was downloaded from the internet | Right-click it and choose **Open** |
+| macOS won't open `start.command` | It was downloaded from the internet | Right-click it and choose **Open**, or allow it under **System Settings → Privacy & Security**. The terminal commands always work |
 | A reply that doesn't fit what you typed | No situation matched, so you got a random quote | Check [COMMANDS.md](slack-of-the-rings/COMMANDS.md) for what each character knows, or add a keyword |
 
 ## Questions
