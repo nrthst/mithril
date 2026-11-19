@@ -14,6 +14,8 @@ const messages = require('../messages');
 const manifest = require('../manifest.json');
 
 const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+// The main README sits at the top of the repository, one level above the bot.
+const MAIN_README = '../README.md';
 const repeat = (fn, times = 60) => new Set(Array.from({ length: times }, fn));
 const allText = payload => JSON.stringify(payload);
 const lineOf = entry => (typeof entry === 'string' ? entry : entry.line);
@@ -416,12 +418,12 @@ test('API quotes join the built-in ones without duplicating them', async () => {
 // ---------------------------------------------------------------------------
 
 test('the README setup link carries the current manifest', () => {
-  const match = read('README.md').match(/^\[create-app\]: (\S+)$/m);
-  assert.ok(match, 'README.md has no [create-app] link');
+  const match = read(MAIN_README).match(/^\[create-app\]: (\S+)$/m);
+  assert.ok(match, 'The top-level README.md has no [create-app] link');
   assert.equal(
     match[1],
     createAppUrl(manifest),
-    'README link is out of date. Replace the [create-app] line with the output of: node -p "require(\'./setup\').createAppUrl()"'
+    'README link is out of date. In the top-level README.md, replace the [create-app] line with the output of: node -p "require(\'./setup\').createAppUrl()"'
   );
   const url = new URL(match[1]);
   assert.equal(url.origin + url.pathname, 'https://api.slack.com/apps');
@@ -663,7 +665,7 @@ test('COMMANDS.md documents every situation with an example that triggers it', (
 
 test('the docs mention every command', () => {
   const { COMMANDS } = require('../slack');
-  for (const file of ['README.md', 'COMMANDS.md']) {
+  for (const file of [MAIN_README, 'COMMANDS.md']) {
     for (const command of Object.keys(COMMANDS)) {
       assert.ok(read(file).includes(`\`${command}`), `${file} does not mention ${command}`);
     }
