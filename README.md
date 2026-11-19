@@ -382,7 +382,7 @@ Three things to notice:
 | `setup.js` | 140 lines | First-run setup: builds the Slack link from the manifest, asks for tokens, writes `.env` |
 | `start.command` | 30 lines | The double-click launcher for Mac. Installs, sets up if needed, starts |
 | `manifest.json` | 35 lines | The Slack app definition: the ten commands, the one permission, Socket Mode |
-| `test/bot.test.js` | 670 lines | The tests |
+| `test/bot.test.js` | 700 lines | The tests |
 | `.env.example`, `COMMANDS.md` | | The configuration template and the full command reference |
 
 It has three dependencies: [`@slack/bolt`](https://github.com/slackapi/bolt-js) for Slack, `axios` for The One API and `dotenv` for the configuration file.
@@ -412,7 +412,7 @@ The split is what makes the bot testable. Neither `messages.js` nor `quotes.js` 
 1. Reads `.env`.
 2. Checks that both Slack tokens are present and start with the right prefix. If not, it says which one is wrong and where to find it, and stops.
 3. Loads the quotes: the built-in ones first, then the film quotes from The One API if a token is set.
-4. Registers the ten commands and connects to Slack.
+4. Registers the ten commands, checks the bot token with Slack, and connects. If Slack rejects a token, it says so and stops.
 5. Prints that it is running, and where its quotes came from.
 
 ### The life of a command
@@ -500,13 +500,13 @@ From the `slack-of-the-rings` folder:
 npm test
 ```
 
-28 tests, which run in about a second and need neither Slack nor the network (The One API is stubbed). They cover:
+29 tests, which run in about a second and need neither Slack nor the network (The One API is stubbed). They cover:
 
 - **Matching:** 90 realistic phrases and the situation each should be read as, including ones that should match nothing (“the push notification”, “team offsite”).
 - **The lines:** situations answer only from their hand-picked lists, never twice in a row, and Gimli gets the credit for his line.
 - **The One API:** tidying and filtering, the timeout, and falling back to built-in quotes when the API fails, hangs or returns too little.
 - **Messages:** every command builds a valid Slack message, and user text can't trigger mentions.
-- **Setup and docs:** the link in this README matches `manifest.json`, the manifest registers exactly the commands the bot handles, and every example in `COMMANDS.md` triggers the situation it claims to.
+- **Setup and docs:** a mistyped Slack token is reported in plain words instead of crashing, the link in this README matches `manifest.json`, the manifest registers exactly the commands the bot handles, and every example in `COMMANDS.md` triggers the situation it claims to.
 
 ## Troubleshooting
 

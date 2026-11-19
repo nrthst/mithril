@@ -37,7 +37,8 @@ async function main() {
     await quotesManager.initialize();
 
     const app = setupSlackApp(quotesManager);
-    await app.start();
+    await app.init();   // checks the bot token with Slack
+    await app.start();  // opens the connection, which checks the app-level token
 
     console.log('\n✨ Slack of the Rings is running!');
     console.log(`   Quotes: ${quotesManager.source}`);
@@ -45,6 +46,9 @@ async function main() {
     console.log('   Keep this window open. Press Ctrl+C to stop.\n');
   } catch (error) {
     console.error('❌ Failed to start:', error.message || error);
+    if (/invalid_auth|not_authed|token_revoked|account_inactive/.test(String(error.message))) {
+      console.error('   Slack rejected a token. Run "npm run setup" to enter fresh ones.');
+    }
     process.exit(1);
   }
 }

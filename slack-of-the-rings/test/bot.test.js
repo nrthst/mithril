@@ -444,6 +444,35 @@ test('setup re-asks for a malformed token and lets the optional one be skipped',
   assert.deepEqual(written, { SLACK_BOT_TOKEN: 'xoxb-bot', SLACK_APP_TOKEN: 'xapp-app', LOTR_API_TOKEN: '' });
 });
 
+test('a mistyped Slack token is reported by the bot, not by a crash', async () => {
+  // Bolt would otherwise check the token in the background the moment the app
+  // is created; that failure belongs to nobody and takes Node down with it.
+  const { WebClient } = require('@slack/web-api');
+  const original = WebClient.prototype.apiCall;
+  const saved = { bot: process.env.SLACK_BOT_TOKEN, app: process.env.SLACK_APP_TOKEN };
+  const calls = [];
+  WebClient.prototype.apiCall = async method => {
+    calls.push(method);
+    throw new Error('An API error occurred: invalid_auth');
+  };
+  process.env.SLACK_BOT_TOKEN = 'xoxb-mistyped';
+  process.env.SLACK_APP_TOKEN = 'xapp-mistyped';
+  try {
+    const app = require('../slack')(new QuotesManager(''));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(calls, [], 'creating the app must not contact Slack');
+
+    // The check runs where index.js can catch it.
+    await assert.rejects(() => app.init(), /invalid_auth/);
+    assert.deepEqual(calls, ['auth.test']);
+  } finally {
+    WebClient.prototype.apiCall = original;
+    for (const [key, value] of [['SLACK_BOT_TOKEN', saved.bot], ['SLACK_APP_TOKEN', saved.app]]) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
+});
+
 test('the manifest registers exactly the commands the bot handles', () => {
   const { COMMANDS } = require('../slack');
   const declared = manifest.features.slash_commands.map(c => c.command).sort();

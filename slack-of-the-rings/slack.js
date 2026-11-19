@@ -48,10 +48,16 @@ const COMMANDS = {
 function setupSlackApp(quotesManager) {
   // Socket Mode: the bot connects out to Slack, so it needs no public URL,
   // tunnel or signing secret.
+  //
+  // deferInitialization: by default Bolt checks the bot token in the background
+  // as soon as the app is created, and a bad token then crashes Node with a raw
+  // stack trace. Deferring lets index.js run the check with `await app.init()`
+  // and report the failure in plain words.
   const app = new App({
     token: process.env.SLACK_BOT_TOKEN,
     appToken: process.env.SLACK_APP_TOKEN,
-    socketMode: true
+    socketMode: true,
+    deferInitialization: true
   });
 
   for (const [name, { reply, oops }] of Object.entries(COMMANDS)) {
