@@ -37,11 +37,11 @@ The bot runs on your own computer and takes about five minutes to set up. It nee
 - [What it looks like](#what-it-looks-like)
 - [Commands](#commands)
 - [The cast](#the-cast)
-- [Setup](#setup)
+- [Installation](#installation)
 - [The One API](#the-one-api)
 - [How it decides what to say](#how-it-decides-what-to-say)
+- [Architecture](#architecture)
 - [Make it your own](#make-it-your-own)
-- [Project layout](#project-layout)
 - [Tests](#tests)
 - [Troubleshooting](#troubleshooting)
 - [Questions](#questions)
@@ -115,25 +115,57 @@ Each of the four also has a pool of general quotes for when nothing specific fit
 
 `/versus` also answers to `baggins`, `mithrandir` and `smeagol`.
 
-## Setup
+## Installation
 
-About five minutes. You need a Slack workspace where you can install apps, and [Node.js](https://nodejs.org) 18 or newer. The bot runs on your own computer.
+About five minutes, in four steps: get the code, create the Slack app, start the bot, try it. The bot runs on your own computer, on Mac, Windows or Linux.
 
-1. **Download the project.** On GitHub, click **Code → Download ZIP** and unzip it, or `git clone` the repository. The bot is the `slack-of-the-rings` folder.
-2. **Create the Slack app.** Click **[Create the Slack app][create-app]**, pick your workspace, then click **Next** and **Create**. The link carries [`manifest.json`](manifest.json), so all ten commands are registered for you.
-3. **Install it.** On the app's **Install App** page, click **Install to Workspace** and copy the **Bot User OAuth Token** (starts with `xoxb-`).
-4. **Create an app-level token.** On **Basic Information → App-Level Tokens**, click **Generate Token and Scopes**, add the `connections:write` scope, and copy the token (starts with `xapp-`).
-5. **Start the bot.**
-   - **Mac:** double-click `start.command`. The first run installs dependencies, offers to open the link from step 2, and asks for your two tokens. If macOS blocks the file, right-click it and choose **Open**.
-   - **Any platform:**
-     ```bash
-     npm install
-     npm run setup
-     npm start
-     ```
-6. **Try `/lotr`** in any channel.
+### Before you start
 
-If the link in step 2 doesn't work, go to [api.slack.com/apps](https://api.slack.com/apps), choose **Create New App → From a manifest**, and paste in the contents of `manifest.json`.
+| You need | How to check |
+|---|---|
+| A Slack workspace where you can install apps | Some workspaces need an admin to approve new apps |
+| [Node.js](https://nodejs.org) 18 or newer | Run `node --version` in a terminal. If it prints `v18` or higher you are set; otherwise install the LTS version from nodejs.org |
+
+Node.js comes with `npm`, which is the only other tool used.
+
+### 1. Get the code
+
+**Without git:** on the GitHub page, click **Code → Download ZIP** and unzip it. The bot is the `slack-of-the-rings` folder inside.
+
+**With git:**
+
+```bash
+git clone https://github.com/nrthst/mithril.git
+cd mithril/slack-of-the-rings
+```
+
+### 2. Create the Slack app
+
+1. Click **[Create the Slack app][create-app]**, pick your workspace, then click **Next** and **Create**. The link carries [`manifest.json`](manifest.json), so all ten commands are registered for you.
+2. On the app's **Install App** page, click **Install to Workspace** and copy the **Bot User OAuth Token** (starts with `xoxb-`).
+3. On **Basic Information → App-Level Tokens**, click **Generate Token and Scopes**, add the `connections:write` scope, and copy the token (starts with `xapp-`).
+
+Keep both tokens to hand for the next step.
+
+If the link doesn't work, go to [api.slack.com/apps](https://api.slack.com/apps), choose **Create New App → From a manifest**, and paste in the contents of `manifest.json`.
+
+### 3. Install and start the bot
+
+**On a Mac, by double-click:** open `start.command`. The first run installs the dependencies, offers to open the Slack link from step 2, and asks for your two tokens. After that it just starts the bot. If macOS blocks the file, right-click it and choose **Open**.
+
+**On any platform, from a terminal** opened in the `slack-of-the-rings` folder:
+
+```bash
+npm install      # downloads the three dependencies into node_modules (first time only)
+npm run setup    # asks for your tokens and saves them in .env (first time only)
+npm start        # starts the bot
+```
+
+`npm run setup` begins by offering to open the Slack link. Type `s` to skip that if you have already created the app.
+
+### 4. Try it
+
+Type `/lotr` in any channel, then `/lotr help` to see everything it can do.
 
 ### When it is running
 
@@ -159,6 +191,12 @@ Setup writes these to a file named `.env` in the project folder. You can also co
 | `LOTR_API_TOKEN` | No | | Your account at [the-one-api.dev](https://the-one-api.dev) |
 
 To change a token, run `npm run setup` again. It asks before replacing an existing `.env`.
+
+### Updating and removing
+
+**To update,** run `git pull`, or download the ZIP again and copy your `.env` into the new folder. Then run `npm install` once more. If the update added or renamed commands, paste the new `manifest.json` into your Slack app's **App Manifest** page.
+
+**To remove it,** stop the bot and delete the folder. Then delete the Slack app: at [api.slack.com/apps](https://api.slack.com/apps), open the app and choose **Delete App** at the bottom of **Basic Information**.
 
 ## The One API
 
@@ -301,6 +339,127 @@ Gollum doesn't quote, he covets. He picks the thing out of your sentence, so `/g
 - **What you type is escaped** before it is echoed back, so `/quest <!channel>` can't ping the channel.
 - **Long text is trimmed.** The first 500 characters are read, and 150 are echoed back.
 
+## Architecture
+
+The bot is four JavaScript files, plus a setup script and a Slack manifest. This section is for anyone who wants to read the code, change it, or know what is running on their machine.
+
+### The big picture
+
+```text
+        SLACK                                    YOUR COMPUTER
++-----------------------+              +----------------------------------------+
+|                       |   command    |  slack.js      one handler per command |
+|  /gandalf merge       | -----------> |     |                                  |
+|  without tests        |              |     v                                  |
+|                       |              |  messages.js   lays out the reply      |
+|                       |              |     |                                  |
+|  Gandalf              |              |     v                                  |
+|  "You shall not       |    reply     |  quotes.js     chooses the line        |
+|   pass!"              | <----------- |                                        |
+|                       |              +----------------------------------------+
++-----------------------+                                  ^
+  commands arrive over a WebSocket                         |  film quotes, once,
+  that the bot opens                                       |  at startup (optional)
+                                                  +-----------------+
+                                                  |   The One API   |
+                                                  +-----------------+
+```
+
+Three things to notice:
+
+- **The bot dials out.** It opens one connection to Slack (Socket Mode) and commands arrive through it. Nothing on your computer has to be reachable from the internet.
+- **Replies are made locally.** By the time a command arrives, every quote is already in memory. Nothing is looked up while answering.
+- **The One API is a startup step, not a dependency.** If it is missing, slow or down, the bot starts anyway with its built-in lines.
+
+### The files
+
+| File | Size | What it does |
+|---|---|---|
+| `index.js` | 60 lines | The entry point. Checks the configuration, loads the quotes, starts the Slack connection |
+| `slack.js` | 80 lines | The only file that touches Slack's library. A table of the ten commands and one loop that registers them |
+| `messages.js` | 210 lines | Builds the Slack message for each command: layout, escaping, and the `/lotr` routing |
+| `quotes.js` | 1,240 lines | Everything about what is said. About two thirds is data (the lines, the situations and their keywords); the rest is the matcher, the quote filter and The One API client |
+| `setup.js` | 140 lines | First-run setup: builds the Slack link from the manifest, asks for tokens, writes `.env` |
+| `start.command` | 30 lines | The double-click launcher for Mac. Installs, sets up if needed, starts |
+| `manifest.json` | 35 lines | The Slack app definition: the ten commands, the one permission, Socket Mode |
+| `test/bot.test.js` | 670 lines | The tests |
+| `.env.example`, `COMMANDS.md` | | The configuration template and the full command reference |
+
+It has three dependencies: [`@slack/bolt`](https://github.com/slackapi/bolt-js) for Slack, `axios` for The One API and `dotenv` for the configuration file.
+
+### Four layers, one direction
+
+```text
+index.js  -->  slack.js  -->  messages.js  -->  quotes.js
+startup        Slack          layout            lines, rules, The One API
+```
+
+Each file uses only what is to its right. (`index.js` also creates the quotes manager and hands it down the line.)
+
+| Layer | Knows about | Knows nothing about |
+|---|---|---|
+| `index.js` | The configuration and the order things start in | Commands or quotes |
+| `slack.js` | Slack's library, the command names, what to say if a command fails | What any character says |
+| `messages.js` | How a reply is laid out in Slack, and who should answer `/lotr` | Slack's library or the network |
+| `quotes.js` | Every line, every rule, how text is matched, The One API | Slack |
+
+The split is what makes the bot testable. Neither `messages.js` nor `quotes.js` needs Slack, so the tests can run every command without a workspace. With The One API stubbed, they need no network either.
+
+### Startup
+
+`index.js` does five things in order:
+
+1. Reads `.env`.
+2. Checks that both Slack tokens are present and start with the right prefix. If not, it says which one is wrong and where to find it, and stops.
+3. Loads the quotes: the built-in ones first, then the film quotes from The One API if a token is set.
+4. Registers the ten commands and connects to Slack.
+5. Prints that it is running, and where its quotes came from.
+
+### The life of a command
+
+1. Someone types `/gandalf merge without tests`. Slack sends the command to the bot.
+2. `slack.js` acknowledges it straight away, because Slack gives up after three seconds, and looks the command up in its table.
+3. The table calls `messages.character(quotes, 'gandalf', text)`.
+4. `messages.js` asks `quotes.reply('gandalf', text)` for a line. `quotes.js` reads the words, scores Gandalf's situations and picks a line from the winner, as described in [How it decides what to say](#how-it-decides-what-to-say).
+5. `messages.js` wraps the line in Slack blocks (the speaker, the quote, an “On: …” footer) with a plain-text version alongside, and escapes what the user typed.
+6. `slack.js` sends the finished message back to Slack, which posts it in the channel.
+
+### What it remembers
+
+Two things, both in memory only:
+
+- **The quote pools**, loaded at startup.
+- **The last line each character said**, so that it isn't repeated straight away.
+
+Nothing is written to disk and nothing survives a restart.
+
+### When something goes wrong
+
+| What fails | What happens |
+|---|---|
+| A Slack token is missing or in the wrong slot | The bot explains which and stops before connecting |
+| The One API fails, hangs or returns too little | The bot starts with its built-in quotes and says why |
+| A command throws an error | The person who typed it gets a private apology in character (“Even wizards make mistakes. Try again!”), the error is printed in the console, and the bot keeps running |
+| `/versus` is given names it doesn't know | A usage hint, visible only to the person who typed it |
+
+### Why it is built this way
+
+**Socket Mode instead of a web server.** An ordinary Slack app is a web server: Slack sends each command to a public address, so you need hosting or a tunnel before anything works. With Socket Mode the bot opens the connection itself, so it runs from a laptop behind any network and setup is two tokens. The price is that it only answers while it is running.
+
+**Rules instead of a language model.** The bot is free to run, needs no API key, and gives the same kind of answer to the same kind of message. Every quote it gives is a real film line with the right speaker, which a model can't promise. And because it is rules, it can be tested: 90 example phrases are checked on every run. The price is that it only understands the keywords it has been given.
+
+**Hand-picked lines instead of searching the quotes.** Searching a few hundred film quotes for a keyword finds lines that contain the word, not lines that suit the moment. So each situation has its own short list, and the big pool is only used when nothing fits and a surprise is the point.
+
+**Quotes loaded once, kept in memory.** Five requests at startup, then none. Replies are instant, the API's rate limit never matters, and an outage after startup changes nothing. The price is that a new token needs a restart.
+
+**One large `quotes.js`.** It is the file you edit to change what the bot says, so everything a character can say, and when, is in one place as plain data. Adding a situation means adding an entry to a list; the matching code doesn't change.
+
+**Messages built by plain functions.** Each command's builder takes the quotes and the typed text and returns an object. That keeps `slack.js` down to a table and a loop, and lets the tests check the message for every command.
+
+**The manifest as the single source for the Slack side.** The one-click link is generated from `manifest.json`, and the tests fail if the link in this README, the manifest and the commands in `slack.js` ever disagree.
+
+**No build step.** It is plain JavaScript for Node.js, with no TypeScript, no bundler and no development dependencies. The tests use Node's built-in test runner. Download, `npm install`, run.
+
 ## Make it your own
 
 Everything a character can say is in `quotes.js`, written to be edited.
@@ -332,22 +491,6 @@ node -p "require('./setup').createAppUrl()"
 For a Slack app that already exists, paste the new manifest into its **App Manifest** page.
 
 **Add a character.** This is a bigger job. A character needs an entry in `CHARACTERS`, `SITUATIONS`, `FALLBACK_QUOTES` and `RALLY` in `quotes.js`, a command in `slack.js` and `manifest.json`, and a line in the help text in `messages.js`. Some tests name the four characters and will need updating too.
-
-## Project layout
-
-| File | Role |
-|---|---|
-| `index.js` | Checks the configuration and starts the bot |
-| `slack.js` | Registers the slash commands |
-| `messages.js` | Builds the Slack message for each command |
-| `quotes.js` | The lines, the situations and their keywords, the matching, The One API client |
-| `manifest.json` | Slack app definition, used by the one-click link |
-| `setup.js` / `start.command` | First-run setup (opens the Slack link, asks for tokens) and the double-click launcher |
-| `.env.example` | Template for the configuration file |
-| `COMMANDS.md` | Every situation, with an example that triggers it |
-| `test/` | The tests |
-
-It has three dependencies: [`@slack/bolt`](https://github.com/slackapi/bolt-js) for Slack, `axios` for The One API and `dotenv` for the configuration file.
 
 ## Tests
 

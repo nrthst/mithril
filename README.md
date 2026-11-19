@@ -27,7 +27,7 @@ Home of **[Slack of the Rings](slack-of-the-rings/)**: a Slack bot with ten slas
 
 ## Get started
 
-Click **Code → Download ZIP** above (or clone the repository), then follow the **[project README](slack-of-the-rings/README.md)**. It covers setup, every command, how the bot chooses its replies, and how The One API is used.
+Click **Code → Download ZIP** above (or clone the repository), then follow the **[project README](slack-of-the-rings/README.md)**. It covers installation, every command, how the bot chooses its replies, how The One API is used, and how the code is put together.
 
 ## License
 
