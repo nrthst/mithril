@@ -2,6 +2,19 @@ const axios = require('axios');
 
 const API_BASE = 'https://the-one-api.dev/v2';
 
+// A slow or hung API must not hold up startup: after this long the bot gives
+// up on the request and carries on with its built-in quotes.
+const API_TIMEOUT_MS = 8000;
+
+// Why a request to The One API failed, in words a non-developer can act on.
+function describeApiError(error) {
+  const status = error && error.response && error.response.status;
+  if (status === 401) return 'The One API rejected the token. Check LOTR_API_TOKEN in .env.';
+  if (status === 429) return 'The One API rate limit was reached. Try again in ten minutes.';
+  if (error && error.code === 'ECONNABORTED') return 'The One API took too long to answer.';
+  return `Could not reach The One API (${(error && error.message) || 'unknown error'}).`;
+}
+
 // The cast. `apiName` is how The One API lists each character.
 const CHARACTERS = {
   frodo: { name: 'Frodo', apiName: 'Frodo Baggins', icon: '💍' },
@@ -179,14 +192,22 @@ class QuotesManager {
     console.log('🔮 Fetching quotes from The One API...');
     try {
       const ids = await this.fetchCharacterIds();
-      for (const key of Object.keys(CHARACTERS)) {
-        if (!ids[key]) continue;
-        const quotes = await this.fetchQuotes(ids[key]);
-        if (quotes.length >= MIN_POOL) this.quotes[key] = quotes;
+      const loaded = await Promise.all(
+        Object.keys(CHARACTERS).map(async key => {
+          if (!ids[key]) return false;
+          const quotes = await this.fetchQuotes(ids[key]);
+          if (quotes.length < MIN_POOL) return false;
+          this.quotes[key] = quotes;
+          return true;
+        })
+      );
+      if (loaded.some(Boolean)) {
+        this.source = 'The One API';
+      } else {
+        console.error('⚠️  The One API returned no usable quotes, using built-in quotes.');
       }
-      this.source = 'The One API';
     } catch (error) {
-      console.error('⚠️  Could not reach The One API, using built-in quotes:', error.message);
+      console.error(`⚠️  ${describeApiError(error)} Using built-in quotes.`);
       this.useFallbackQuotes();
     }
 
@@ -202,7 +223,8 @@ class QuotesManager {
   async fetchCharacterIds() {
     const response = await axios.get(`${API_BASE}/character`, {
       headers: this.headers,
-      params: { limit: 1000 }
+      params: { limit: 1000 },
+      timeout: API_TIMEOUT_MS
     });
     const ids = {};
     for (const [key, character] of Object.entries(CHARACTERS)) {
@@ -215,7 +237,8 @@ class QuotesManager {
   async fetchQuotes(characterId) {
     const response = await axios.get(`${API_BASE}/character/${characterId}/quote`, {
       headers: this.headers,
-      params: { limit: 1000 }
+      params: { limit: 1000 },
+      timeout: API_TIMEOUT_MS
     });
     return cleanQuotes(response.data.docs);
   }

@@ -1,6 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const axios = require('axios');
 
+const { createAppUrl, askForTokens, envFile } = require('../setup');
 const QuotesManager = require('../quotes');
 const { SITUATIONS, FALLBACK_QUOTES, matchesAny, cleanQuotes } = QuotesManager;
 const messages = require('../messages');
@@ -67,6 +71,95 @@ test('without an API token the bot uses its built-in quotes', async () => {
   await quotes.initialize();
   assert.deepEqual(quotes.quotes, FALLBACK_QUOTES);
   assert.equal(quotes.source, 'built-in quotes');
+});
+
+// Runs `run` with The One API replaced by `handler(url)`, and the console quiet.
+async function withApi(handler, run) {
+  const original = { get: axios.get, log: console.log, error: console.error };
+  axios.get = async (url, options) => handler(url, options);
+  console.log = console.error = () => {};
+  try {
+    return await run();
+  } finally {
+    axios.get = original.get;
+    console.log = original.log;
+    console.error = original.error;
+  }
+}
+
+// A stand-in for The One API that knows the four characters.
+function fakeApi(dialogFor) {
+  return async url => {
+    if (url.endsWith('/character')) {
+      return { data: { docs: Object.values(QuotesManager.CHARACTERS).map(c => ({ _id: c.apiName, name: c.apiName })) } };
+    }
+    const who = decodeURIComponent(url.split('/character/')[1].split('/quote')[0]);
+    return { data: { docs: dialogFor(who).map(dialog => ({ dialog })) } };
+  };
+}
+
+test('an API that fails or hangs leaves the built-in quotes in place', async () => {
+  for (const failure of [
+    Object.assign(new Error('timeout of 8000ms exceeded'), { code: 'ECONNABORTED' }),
+    Object.assign(new Error('Request failed'), { response: { status: 401 } }),
+    new Error('getaddrinfo ENOTFOUND the-one-api.dev')
+  ]) {
+    const quotes = new QuotesManager('some-token');
+    await withApi(async () => { throw failure; }, () => quotes.initialize());
+    assert.deepEqual(quotes.quotes, FALLBACK_QUOTES);
+    assert.equal(quotes.source, 'built-in quotes');
+  }
+});
+
+test('API requests carry a timeout', async () => {
+  const timeouts = [];
+  const api = fakeApi(() => []);
+  const quotes = new QuotesManager('some-token');
+  await withApi((url, options) => { timeouts.push(options.timeout); return api(url); }, () => quotes.initialize());
+  assert.equal(timeouts.length, 5);
+  assert.ok(timeouts.every(ms => ms > 0 && ms <= 15000));
+});
+
+test('the quote source is only called The One API when quotes actually loaded', async () => {
+  const empty = new QuotesManager('some-token');
+  await withApi(fakeApi(() => []), () => empty.initialize());
+  assert.equal(empty.source, 'built-in quotes');
+  assert.deepEqual(empty.quotes, FALLBACK_QUOTES);
+
+  const lines = Array.from({ length: 8 }, (_, i) => `This is film line number ${i} for the test.`);
+  const loaded = new QuotesManager('some-token');
+  await withApi(fakeApi(who => (who === 'Gandalf' ? lines : [])), () => loaded.initialize());
+  assert.equal(loaded.source, 'The One API');
+  assert.ok(lines.every(line => loaded.quotes.gandalf.includes(line)));
+  assert.deepEqual(loaded.quotes.frodo, FALLBACK_QUOTES.frodo);
+});
+
+test('the README setup link carries the current manifest', () => {
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+  const match = readme.match(/^\[create-app\]: (\S+)$/m);
+  assert.ok(match, 'README.md has no [create-app] link');
+  assert.equal(
+    match[1],
+    createAppUrl(manifest),
+    'README link is out of date. Replace the [create-app] line with the output of: node -p "require(\'./setup\').createAppUrl()"'
+  );
+  const url = new URL(match[1]);
+  assert.equal(url.origin + url.pathname, 'https://api.slack.com/apps');
+  assert.equal(url.searchParams.get('new_app'), '1');
+  assert.deepEqual(JSON.parse(url.searchParams.get('manifest_json')), manifest);
+  // Characters that would end a Markdown link early must be escaped.
+  assert.doesNotMatch(match[1], /[()\s'<>]/);
+});
+
+test('setup re-asks for a malformed token and lets the optional one be skipped', async () => {
+  const answers = ['nope', 'xapp-wrong', 'xoxb-bot', '', 'xapp-app', ''];
+  const asked = [];
+  const values = await askForTokens(async prompt => { asked.push(prompt); return answers.shift(); }, () => {});
+  assert.deepEqual(values, { SLACK_BOT_TOKEN: 'xoxb-bot', SLACK_APP_TOKEN: 'xapp-app' });
+  assert.equal(asked.length, 6);
+
+  const written = require('dotenv').parse(envFile(values));
+  assert.deepEqual(written, { SLACK_BOT_TOKEN: 'xoxb-bot', SLACK_APP_TOKEN: 'xapp-app', LOTR_API_TOKEN: '' });
 });
 
 test('gollum covets what the user asked for', () => {
