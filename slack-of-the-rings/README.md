@@ -1,11 +1,88 @@
 # 🧙‍♂️ Slack of the Rings
 
-Ten slash commands that answer your team with a fitting line from Middle-earth. Type `/gandalf merge without tests` and Gandalf warns you off; type `/gandalf deployed successfully` and he is pleased for you.
+```text
+                                                  (   )
+                                               ( )
+                                             o
+                                            |=|
+                   _..---'''''''''''''''''''|_|---.._
+             _.-''                                    ''-._
+         .-'         .-'''''''''-.                          '-.
+      .'           .'             '.             .-'''-.        '.
+    /             /                 \           /   |   \          \
+   /             |        (o)        |         |----+----|          \
+  |               \                 /           \   |   /            |
+  |                '.             .'             '-...-'             |
+^^^^^^*^^^^^^^^^^^^^^'-._______.-'^^^^^^^*^^^^^^^^^^^^^^^*^^^^^^^^^^^^
+                    /   .     .   \
+                  /  .     .     .  \
+                /   .    .     .   .  \
 
-An unofficial, fan-made Slack bot. Not affiliated with or endorsed by the Tolkien Estate, Middle-earth Enterprises or Warner Bros.
+           In a hole in the ground there lived a Slack bot.
+```
+
+**Ten slash commands that answer your team with a fitting line from Middle-earth.**
+
+Type `/gandalf merge without tests` and Gandalf warns you off. Type `/gandalf deployed successfully` and he is pleased for you. Tell Legolas you closed ten tickets and Gimli cuts in to say it still only counts as one.
+
+The bot runs on your own computer and takes about five minutes to set up. It needs no server, no AI service and nothing paid. Film quotes come from [The One API](https://the-one-api.dev), which is optional: without it the bot uses the lines it ships with.
+
+> An unofficial, fan-made Slack bot. Not affiliated with or endorsed by the Tolkien Estate, Middle-earth Enterprises or Warner Bros.
 
 <!-- Demo: record a short GIF of the commands in Slack, save it as docs/demo.gif, then uncomment the next line. -->
 <!-- ![Slack of the Rings in action](docs/demo.gif) -->
+
+## Contents
+
+- [What it looks like](#what-it-looks-like)
+- [Commands](#commands)
+- [The cast](#the-cast)
+- [Setup](#setup)
+- [The One API](#the-one-api)
+- [How it decides what to say](#how-it-decides-what-to-say)
+- [Make it your own](#make-it-your-own)
+- [Project layout](#project-layout)
+- [Tests](#tests)
+- [Troubleshooting](#troubleshooting)
+- [Questions](#questions)
+- [Privacy and security](#privacy-and-security)
+- [Credits](#credits)
+- [License](#license)
+
+## What it looks like
+
+Replies post in the channel for everyone. These are real replies; most situations have several lines, so yours may differ.
+
+| You type | Who answers | What they say |
+|---|---|---|
+| `/gandalf merge without tests` | 🧙‍♂️ Gandalf | “You shall not pass!” |
+| `/gandalf deployed successfully` | 🧙‍♂️ Gandalf | “Breathe the free air again, my friend.” |
+| `/gandalf missed the deadline` | 🧙‍♂️ Gandalf | “A wizard is never late, Frodo Baggins. Nor is he early. He arrives precisely when he means to.” |
+| `/gandalf too many meetings` | 🧙‍♂️ Gandalf | “Silence!” |
+| `/frodo feeling overwhelmed` | 💍 Frodo | “It's such a weight to carry.” |
+| `/legolas closed 10 tickets` | 🪓 Gimli, cutting in on Legolas | “That still only counts as one!” |
+| `/legolas not done yet` | 🏹 Legolas | “We must move on, we cannot linger.” |
+| `/gollum I really need some coffee` | 🐟 Gollum | We wants it, we needs it! Must have the **coffee**… raw and wriggling! |
+
+The group commands stack several speakers into one message:
+
+```text
+/council deploy on friday
+
+⚔️ The Council of Elrond
+On: deploy on friday
+
+💍  Frodo
+┃ “I'm glad to be with you, Samwise Gamgee, here at the end of all things.”
+🧙‍♂️  Gandalf
+┃ “You shall not pass!”
+🏹  Legolas
+┃ “The horses are restless and the men are quiet.”
+──────────────────────────────
+The council has spoken.
+```
+
+Gandalf knows what he thinks of Friday deploys. Frodo and Legolas have no particular view, so each offers a random line of his own.
 
 ## Commands
 
@@ -22,19 +99,21 @@ An unofficial, fan-made Slack bot. Not affiliated with or endorsed by the Tolkie
 | `/wisdom` | A line worth pausing on | `/wisdom` |
 | `/quest [task]` | Your task, announced as a quest | `/quest fix the auth bug` |
 
-Replies post in the channel for everyone. Every situation the characters know, with an example for each, is in [COMMANDS.md](COMMANDS.md).
+Text in brackets is optional. Every situation the characters know, with an example that triggers each one, is in [COMMANDS.md](COMMANDS.md).
 
-## How it decides what to say
+## The cast
 
-It is all rules, with no AI service behind it, so there is nothing extra to sign up or pay for.
+| | Speaks to | Knows |
+|---|---|---|
+| 💍 **Frodo** | The weight of the work: being overwhelmed, wanting to quit, taking something on, finishing it, thanking the people who helped | 14 situations |
+| 🧙‍♂️ **Gandalf** | Judgement: warnings for risky moves, good news, lateness, hard choices, secrets, nerves, meetings that run long | 18 situations |
+| 🏹 **Legolas** | Dry understatement: achievements downplayed, things feeling off, old code, stubborn colleagues, drinks | 16 situations |
+| 🐟 **Gollum** | Wanting things. He doesn't quote; he covets whatever you name | 6 kinds of wanting |
+| 🪓 **Gimli** | One line. He has no command and appears only to deliver it | A guest |
 
-- **Situations get hand-picked lines.** Each character knows a set of situations (Gandalf has eighteen, from risky deploys to someone's last day). Your text is scored against all of them and the best fit answers from a short curated list. An earlier version searched the whole quote pool by keyword, which sounded clever and returned nonsense: any Gandalf quote containing the word "fool" counted as a warning.
-- **It reads words, not letters.** "deploy" matches "deployed" and "deploying" but "tea" never matches "team". `/legolas not done yet` is not treated as an achievement, and `/gandalf deployed successfully` is good news where `/gandalf deploy on friday` is a warning.
-- **The lines are checked.** Every hand-picked line was verified against [The One API](https://the-one-api.dev) for speaker and wording. That is why Gimli, not Legolas, delivers "That still only counts as one!": he cuts in on `/legolas` to say it.
-- **Everything else is a surprise.** With no match, the character answers with a random quote from their pool: a built-in set, plus a few hundred film quotes if you add a free The One API token.
-- **Gollum doesn't quote, he covets.** `/gollum I really need some coffee` builds a line in his voice around the *coffee*.
-- **Messages use Slack's Block Kit**, so each speaker gets a name, a block quote and a context line showing what prompted it.
-- **What you type is escaped** before it is echoed back, so `/quest <!channel>` can't ping the channel.
+Each of the four also has a pool of general quotes for when nothing specific fits: 16 built in for Frodo, 32 for Gandalf, 21 for Legolas and 26 for Gollum. A The One API token adds a few hundred more between them.
+
+`/versus` also answers to `baggins`, `mithrandir` and `smeagol`.
 
 ## Setup
 
@@ -56,11 +135,203 @@ About five minutes. You need a Slack workspace where you can install apps, and [
 
 If the link in step 2 doesn't work, go to [api.slack.com/apps](https://api.slack.com/apps), choose **Create New App → From a manifest**, and paste in the contents of `manifest.json`.
 
-The bot answers for as long as it is running. It uses Slack's Socket Mode, which means it connects out to Slack: no public URL, tunnel or server is needed.
+### When it is running
 
-### More quotes (optional)
+The window ends with:
 
-Sign up at [the-one-api.dev](https://the-one-api.dev/sign-up), then add the token to `.env` as `LOTR_API_TOKEN` (or run `npm run setup` again). Quotes are fetched once at startup, filtered, and kept in memory. If the API is down, slow or rejects the token, the bot says why and carries on with its built-in quotes.
+```text
+✨ Slack of the Rings is running!
+   Quotes: built-in quotes
+   Try /lotr in any Slack channel.
+   Keep this window open. Press Ctrl+C to stop.
+```
+
+The bot answers for as long as that window stays open. It uses Slack's Socket Mode, which means it connects out to Slack: no public URL, tunnel or server is needed. To start it again later, double-click `start.command` or run `npm start`. To have it answer around the clock, run it on any machine that stays on.
+
+### Configuration
+
+Setup writes these to a file named `.env` in the project folder. You can also copy [`.env.example`](.env.example) to `.env` and fill it in by hand.
+
+| Variable | Required | Starts with | Where it comes from |
+|---|---|---|---|
+| `SLACK_BOT_TOKEN` | Yes | `xoxb-` | Slack app → **OAuth & Permissions** → Bot User OAuth Token |
+| `SLACK_APP_TOKEN` | Yes | `xapp-` | Slack app → **Basic Information** → App-Level Tokens (scope `connections:write`) |
+| `LOTR_API_TOKEN` | No | | Your account at [the-one-api.dev](https://the-one-api.dev) |
+
+To change a token, run `npm run setup` again. It asks before replacing an existing `.env`.
+
+## The One API
+
+[The One API](https://the-one-api.dev) is a free, community-run database of *The Lord of the Rings*: the books and their chapters, the films, the characters, and the dialogue of the film trilogy. Slack of the Rings uses it in two ways.
+
+**As the reference for every hand-picked line.** Each line a character says in answer to a situation (139 at last count) was compared against the API for speaker and wording before it went in. Lines the API could not confirm were left out. This is why Gimli has a part: "That still only counts as one!" is his line, not Legolas's, so he cuts in on `/legolas` to say it.
+
+**As a bigger pool of random quotes, if you want one.** With a token in `.env`, each character's general pool grows from a couple of dozen lines to many more. In testing that came to 137 for Frodo, 173 for Gandalf, 39 for Legolas and 126 for Gollum.
+
+### Getting a token
+
+1. Sign up at [the-one-api.dev/sign-up](https://the-one-api.dev/sign-up). It is free.
+2. Copy the access token from your account.
+3. Run `npm run setup` again and paste it at the third question, or add it to `.env` yourself as `LOTR_API_TOKEN=...`.
+4. Restart the bot. The startup message changes to `Quotes: The One API`.
+
+### What happens at startup
+
+```text
+🔮 Fetching quotes from The One API...
+   Frodo: 137 quotes
+   Gandalf: 173 quotes
+   Legolas: 39 quotes
+   Gollum: 126 quotes
+```
+
+1. One request to `/v2/character` finds Frodo Baggins, Gandalf, Legolas and Gollum by name.
+2. One request each to `/v2/character/{id}/quote` fetches their film dialogue.
+3. Every line is tidied and filtered (see below).
+4. What is left joins the built-in pool. Where the API and the built-in set have the same line, the built-in wording is kept.
+5. The quotes stay in memory until the bot stops. Nothing more is fetched.
+
+That is five requests per start, against the API's limit of 100 every ten minutes. Starting took about two seconds in testing.
+
+### What is filtered out
+
+Film dialogue is written to be heard in its scene, and the API's transcription has slips. A line has to stand on its own in a work channel, so these are dropped:
+
+| Dropped | For example |
+|---|---|
+| Fragments: under 15 characters or under 4 words | “Sam!” |
+| Speeches over 280 characters | |
+| Short questions, which mean nothing out of context | “What did you say?” |
+| Drawn-out shouts | “Nooooo!” |
+| Lines with transcription damage, such as a lost accent | “Nazg'l” |
+| The grimmest lines: killing, murder and the like | “Kill them both!” |
+| Duplicates | |
+
+Small slips are repaired instead: doubled spaces, a missing space after a full stop (“rises.Blood”), a capital I typed for an l (“Iet”), and stray stage directions. A few oddities still get through, mostly two words run together.
+
+The grim-line filter is one line, `TOO_GRIM` in `quotes.js`, if you would rather have them.
+
+### When the API is unavailable
+
+The bot always starts. The console says what happened and the built-in quotes are used.
+
+| Situation | What the console says |
+|---|---|
+| No token set | `No LOTR_API_TOKEN set, using built-in quotes.` |
+| Token rejected | `The One API rejected the token. Check LOTR_API_TOKEN in .env.` |
+| Rate limit reached | `The One API rate limit was reached. Try again in ten minutes.` |
+| No answer within 8 seconds | `The One API took too long to answer.` |
+| Anything else | `Could not reach The One API (...)` with the reason |
+
+### What it does and doesn't change
+
+| | Without a token | With a token |
+|---|---|---|
+| Replies to a situation (`/gandalf merge without tests`) | Hand-picked lines | The same hand-picked lines |
+| `/wisdom`, `/quest`, pep talks, Gollum's coveting | Built in | The same |
+| Replies when nothing fits, and `/versus` | Built-in pool | Built-in pool plus the API's quotes |
+
+Two limits are worth knowing. The API's dialogue comes from the three films, so book-only lines aren't used anywhere in the bot. And nothing anyone types in Slack is ever sent to the API: the only thing it receives is your token, at startup.
+
+## How it decides what to say
+
+It is all rules, with no AI service behind it, so there is nothing extra to sign up or pay for. Here is one command, start to finish:
+
+```text
+/gandalf deploy on friday without tests
+        │
+        ▼
+ 1. Read the words       Lower-cased and split into words and clauses.
+                         Mentions, #channels, links and :emoji: are removed.
+        │
+        ▼
+ 2. Score every          Gandalf's 18 situations are each checked for keywords:
+    situation              "A warning"   without ~ test  2 points
+                                         friday          1 point
+                                         =deploy         1 point
+                                                         4 points in all
+                           (nothing else scores)
+        │
+        ▼
+ 3. Best score wins      "A warning" answers with one of its hand-picked lines,
+                         never the one it gave last time.
+        │
+        ▼
+ 4. Build the message    🧙‍♂️ Gandalf: “Fly, you fools!”
+                         On: deploy on friday without tests
+```
+
+### Keywords
+
+Each situation is a list of keywords in `quotes.js`. A keyword scores one point per word, so a phrase outweighs a single word. The situation with the highest total answers, and a tie goes to the one listed first.
+
+| Written as | Matches |
+|---|---|
+| `deploy` | The word and its ordinary endings: deploys, deployed, deploying, deployment. Never a longer word that starts the same way, so `tea` is not “team” |
+| `=deployed` | Exactly that form and no other |
+| `without review` | The words in a row |
+| `without ~ test` | The words with up to two others in between: “without any tests” |
+
+### The details that make it read well
+
+- **Hand-picked lines, not a search.** An earlier version searched the whole quote pool by keyword, which sounded clever and returned nonsense: any Gandalf quote containing the word “fool” counted as a warning. Now a situation answers only from its own short list.
+- **“Not” is understood where it changes the meaning.** A “not”, “never”, “don't” or “without” up to three words before a keyword, in the same clause, marks it as negated. `/gandalf don't skip the tests` earns no warning. `/legolas not done yet` is not an achievement; it is work still in progress, and gets a different line.
+- **Tense carries meaning.** `/gandalf deploy on friday` is a plan and gets a warning. `/gandalf deployed successfully` is a report and gets good news.
+- **Links and mentions can't trigger anything.** A channel named `#deploy-friday` or a URL containing “merge” is removed before the words are read.
+- **No repeats.** A character never gives the same line twice in a row when there is another to choose from.
+- **No match means a surprise**: a random quote from that character's pool.
+
+### `/lotr`: one command to rule them all
+
+`/lotr` works out who should answer.
+
+1. If your text describes a situation someone knows, that character answers. `/lotr merge without tests` goes to Gandalf, `/lotr coffee` to Gollum, `/lotr closed 10 tickets` to Legolas. When several fit equally well (`/lotr prod is down`), one of them is picked.
+2. If it reads as a job to be done, starting with a verb such as fix, write or build, it becomes a `/quest`.
+3. Anything else gets a surprise: a character, `/council` or `/fellowship`.
+
+With no text it picks from the four characters, `/fellowship` and `/wisdom`. `/lotr help` shows the command list, visible only to you.
+
+### Gollum
+
+Gollum doesn't quote, he covets. He picks the thing out of your sentence, so `/gollum I really need some coffee, please` covets *coffee*, and he has a different line for each of six kinds of wanting: access, food and drink, code, money, time off, and office kit. His coveting lines are written for the bot from his own phrases; they are not film quotes.
+
+### The message itself
+
+- **Slack's Block Kit** gives each speaker a name, a block quote and a context line showing what prompted it. A plain-text version goes along for notifications.
+- **What you type is escaped** before it is echoed back, so `/quest <!channel>` can't ping the channel.
+- **Long text is trimmed.** The first 500 characters are read, and 150 are echoed back.
+
+## Make it your own
+
+Everything a character can say is in `quotes.js`, written to be edited.
+
+**Add or change a situation.** Each one is an entry in `SITUATIONS`:
+
+```js
+{
+  id: 'burden',                      // a stable name, used by the tests
+  about: 'The weight of it all',     // shown in COMMANDS.md
+  keywords: ['overwhelm', 'burden', 'heavy', 'too much', 'on call'],
+  quotes: [
+    "The Ring is my burden.",
+    "It's such a weight to carry."
+  ]
+}
+```
+
+Two optional flags handle “not”: `negatable: true` makes the situation ignore negated keywords, and `negationOf: 'other-id'` makes it answer when another situation's keywords appear only in the negative.
+
+The tests expect each situation to be documented and exercised, so after adding one, add a row to [COMMANDS.md](COMMANDS.md) and a phrase to the `PHRASES` table in `test/bot.test.js`. `npm test` tells you if either is missing.
+
+**Change the commands.** Their names and descriptions are in `manifest.json`, and their handlers in `slack.js`. The setup link in this README is built from the manifest, so after changing it, print a new link and replace the last line of this file:
+
+```bash
+node -p "require('./setup').createAppUrl()"
+```
+
+For a Slack app that already exists, paste the new manifest into its **App Manifest** page.
+
+**Add a character.** This is a bigger job. A character needs an entry in `CHARACTERS`, `SITUATIONS`, `FALLBACK_QUOTES` and `RALLY` in `quotes.js`, a command in `slack.js` and `manifest.json`, and a line in the help text in `messages.js`. Some tests name the four characters and will need updating too.
 
 ## Project layout
 
@@ -72,22 +343,83 @@ Sign up at [the-one-api.dev](https://the-one-api.dev/sign-up), then add the toke
 | `quotes.js` | The lines, the situations and their keywords, the matching, The One API client |
 | `manifest.json` | Slack app definition, used by the one-click link |
 | `setup.js` / `start.command` | First-run setup (opens the Slack link, asks for tokens) and the double-click launcher |
-| `test/` | Tests: 90 example phrases and the situation each should hit, message layout, setup, the manifest, and that the docs match the code |
+| `.env.example` | Template for the configuration file |
+| `COMMANDS.md` | Every situation, with an example that triggers it |
+| `test/` | The tests |
 
-Run the tests with `npm test`.
+It has three dependencies: [`@slack/bolt`](https://github.com/slackapi/bolt-js) for Slack, `axios` for The One API and `dotenv` for the configuration file.
+
+## Tests
+
+```bash
+npm test
+```
+
+28 tests, which run in about a second and need neither Slack nor the network (The One API is stubbed). They cover:
+
+- **Matching:** 90 realistic phrases and the situation each should be read as, including ones that should match nothing (“the push notification”, “team offsite”).
+- **The lines:** situations answer only from their hand-picked lists, never twice in a row, and Gimli gets the credit for his line.
+- **The One API:** tidying and filtering, the timeout, and falling back to built-in quotes when the API fails, hangs or returns too little.
+- **Messages:** every command builds a valid Slack message, and user text can't trigger mentions.
+- **Setup and docs:** the link in this README matches `manifest.json`, the manifest registers exactly the commands the bot handles, and every example in `COMMANDS.md` triggers the situation it claims to.
 
 ## Troubleshooting
 
-- **"/command failed because the app did not respond"**: the bot isn't running. Start it again.
-- **"The .env file needs attention"**: a token is missing or in the wrong slot. Run `npm run setup`.
-- **A command "is not a valid command"**: it isn't registered in your Slack app. Compare the app's **Slash Commands** page with `manifest.json`.
+| What you see | What it means | What to do |
+|---|---|---|
+| Slack says the command failed or the app did not respond (often shown as `dispatch_failed`) | The bot isn't running | Start it again |
+| `The .env file needs attention` | A token is missing or in the wrong slot | Run `npm run setup` |
+| Slack says the command “is not a valid command” | It isn't registered in your Slack app | Compare the app's **Slash Commands** page with `manifest.json` |
+| `Failed to start` followed by an error from Slack | Usually a token that was revoked, or that belongs to a different app | Copy fresh tokens from the Slack app and run `npm run setup` |
+| `Quotes: built-in quotes` although you set a The One API token | The API couldn't be used | Read the line above it; see [When the API is unavailable](#when-the-api-is-unavailable) |
+| `Slack of the Rings needs Node.js 18 or newer` | Node.js isn't installed, or isn't on the path | Install it from [nodejs.org](https://nodejs.org) |
+| macOS won't open `start.command` | It was downloaded from the internet | Right-click it and choose **Open** |
+| A reply that doesn't fit what you typed | No situation matched, so you got a random quote | Check [COMMANDS.md](COMMANDS.md) for what each character knows, or add a keyword |
 
-## Security
+## Questions
 
-Your tokens live in `.env`, which is gitignored. Never commit it, and regenerate the tokens in your Slack app settings if they are ever exposed.
+**Does it use AI?**
+No. Replies are chosen by keyword rules from lists written in advance, so the same kind of message gets the same kind of answer, and there is no model, API key or bill.
+
+**Does it cost anything?**
+No. Node.js is free, creating a Slack app is free, and so is The One API.
+
+**Do I need a server?**
+No. The bot connects out to Slack from wherever it runs, so a laptop is enough. It only answers while it is running.
+
+**Can it read our messages?**
+No. Its only Slack permission is `commands`, so Slack sends it just the text typed after one of its own slash commands.
+
+**Can I use it without The One API?**
+Yes. Every command works with the built-in lines. The token only widens the pool of random quotes.
+
+**Are the quotes from the books?**
+From the films. The One API's dialogue covers the film trilogy, and every hand-picked line was checked against it.
+
+**Why does Gimli answer when I asked Legolas?**
+Because the line is his. Legolas keeps his own count: “Final count: 42.”
+
+**Can another workspace use my copy?**
+Each workspace creates its own Slack app from the link and runs its own copy.
+
+## Privacy and security
+
+- **Tokens stay on your computer.** They live in `.env`, which is gitignored. On Mac and Linux, setup creates the file readable only by your user account.
+- **Never commit `.env`.** If a token is ever exposed, regenerate it in your Slack app settings (or your The One API account) and run `npm run setup`.
+- **Nothing is stored.** There is no database. The bot keeps no record of what people type, and writes nothing to disk apart from `.env`.
+- **It talks to two places:** Slack, and The One API at startup if you gave it a token.
+- **It asks Slack for one permission**, `commands`.
+
+## Credits
+
+- [The One API](https://the-one-api.dev) for the film dialogue, and for being the reference the lines were checked against.
+- [Bolt for JavaScript](https://github.com/slackapi/bolt-js), Slack's framework for apps like this one.
+- J.R.R. Tolkien for Middle-earth. The lines quoted are dialogue from the film trilogy.
+
+This is a fan project made for fun. It is not affiliated with or endorsed by the Tolkien Estate, Middle-earth Enterprises or Warner Bros.
 
 ## License
 
-MIT
+MIT. See [LICENSE](../LICENSE).
 
 [create-app]: https://api.slack.com/apps?new_app=1&manifest_json=%7B%22display_information%22%3A%7B%22name%22%3A%22Slack%20of%20the%20Rings%22%2C%22description%22%3A%22Middle-earth%20quotes%20for%20every%20occasion.%20An%20unofficial%20fan%20project.%22%2C%22background_color%22%3A%22%232c3e2d%22%7D%2C%22features%22%3A%7B%22bot_user%22%3A%7B%22display_name%22%3A%22Slack%20of%20the%20Rings%22%2C%22always_online%22%3Afalse%7D%2C%22slash_commands%22%3A%5B%7B%22command%22%3A%22%2Flotr%22%2C%22description%22%3A%22One%20command%20to%20rule%20them%20all%3A%20whoever%20fits%20answers%22%2C%22usage_hint%22%3A%22%5Banything%2C%20or%20help%5D%22%2C%22should_escape%22%3Afalse%7D%2C%7B%22command%22%3A%22%2Ffrodo%22%2C%22description%22%3A%22Frodo%20responds%20to%20your%20situation%22%2C%22usage_hint%22%3A%22%5Bwhat%27s%20going%20on%5D%22%2C%22should_escape%22%3Afalse%7D%2C%7B%22command%22%3A%22%2Fgandalf%22%2C%22description%22%3A%22Gandalf%20offers%20wisdom%20or%20a%20warning%22%2C%22usage_hint%22%3A%22%5Bwhat%20you%27re%20about%20to%20do%5D%22%2C%22should_escape%22%3Afalse%7D%2C%7B%22command%22%3A%22%2Flegolas%22%2C%22description%22%3A%22Legolas%20downplays%20your%20achievement%22%2C%22usage_hint%22%3A%22%5Bwhat%20you%20achieved%5D%22%2C%22should_escape%22%3Afalse%7D%2C%7B%22command%22%3A%22%2Fgollum%22%2C%22description%22%3A%22Gollum%20covets%20whatever%20you%20want%22%2C%22usage_hint%22%3A%22%5Bthe%20thing%20you%20want%5D%22%2C%22should_escape%22%3Afalse%7D%2C%7B%22command%22%3A%22%2Ffellowship%22%2C%22description%22%3A%22A%20pep%20talk%20from%20the%20whole%20fellowship%22%2C%22usage_hint%22%3A%22%5Btopic%5D%22%2C%22should_escape%22%3Afalse%7D%2C%7B%22command%22%3A%22%2Fcouncil%22%2C%22description%22%3A%22The%20Council%20of%20Elrond%20weighs%20in%22%2C%22usage_hint%22%3A%22%5Btopic%5D%22%2C%22should_escape%22%3Afalse%7D%2C%7B%22command%22%3A%22%2Fversus%22%2C%22description%22%3A%22Quote%20battle%20between%20two%20characters%22%2C%22usage_hint%22%3A%22%5Bfrodo%7Cgandalf%7Clegolas%7Cgollum%5D%20vs%20%5Bfrodo%7Cgandalf%7Clegolas%7Cgollum%5D%22%2C%22should_escape%22%3Afalse%7D%2C%7B%22command%22%3A%22%2Fwisdom%22%2C%22description%22%3A%22Wisdom%20from%20Middle-earth%22%2C%22should_escape%22%3Afalse%7D%2C%7B%22command%22%3A%22%2Fquest%22%2C%22description%22%3A%22Turn%20your%20task%20into%20an%20epic%20quest%22%2C%22usage_hint%22%3A%22%5Btask%5D%22%2C%22should_escape%22%3Afalse%7D%5D%7D%2C%22oauth_config%22%3A%7B%22scopes%22%3A%7B%22bot%22%3A%5B%22commands%22%5D%7D%7D%2C%22settings%22%3A%7B%22interactivity%22%3A%7B%22is_enabled%22%3Afalse%7D%2C%22org_deploy_enabled%22%3Afalse%2C%22socket_mode_enabled%22%3Atrue%2C%22token_rotation_enabled%22%3Afalse%7D%7D
