@@ -2,12 +2,15 @@
 // manager plus whatever the user typed, and returns a payload for `respond()`:
 // Block Kit blocks for the layout and plain `text` for notifications.
 
-const { CHARACTERS } = require('./quotes');
+const { CHARACTERS, GUESTS, tokenize, wanted } = require('./quotes');
 
 const CAST = Object.keys(CHARACTERS);
 const MAX_INPUT = 150;
 
 const pick = list => list[Math.floor(Math.random() * list.length)];
+
+// A cast member or a guest, by key.
+const who = key => CHARACTERS[key] || GUESTS[key];
 
 // Slack reads <...> as mentions and links, so user text and quotes are escaped
 // before they go into a message. Without this, `/quest <!channel>` would ping
@@ -29,49 +32,63 @@ const section = text => ({ type: 'section', text: { type: 'mrkdwn', text } });
 const context = text => ({ type: 'context', elements: [{ type: 'mrkdwn', text }] });
 const divider = () => ({ type: 'divider' });
 
-// A character's name with their line as a block quote underneath.
-function speech(key, line, { verbatim = true } = {}) {
-  const { icon, name } = CHARACTERS[key];
+// A speaker's name with their line as a block quote underneath. `aside` is a
+// short stage direction shown after the name.
+function speech(key, line, { verbatim = true, aside } = {}) {
+  const { icon, name } = who(key);
   const body = verbatim ? `“${escapeText(line)}”` : line;
-  return section(`${icon}  *${name}*\n>${body}`);
+  const label = aside ? `${icon}  *${name}*  _${aside}_` : `${icon}  *${name}*`;
+  return section(`${label}\n>${body}`);
 }
 
-const plain = (key, line) => `${CHARACTERS[key].icon} ${CHARACTERS[key].name}: “${line}”`;
+const plain = (key, line) => `${who(key).icon} ${who(key).name}: “${line}”`;
 
 const inChannel = (text, blocks) => ({ response_type: 'in_channel', text, blocks });
 const onlyYou = text => ({ response_type: 'ephemeral', text });
+
+// One reply from the quotes manager as a block plus its plain-text version.
+// When the line belongs to a guest (Gimli's "That still only counts as one!"),
+// the guest is shown cutting in on the character who was asked.
+function spoken(asked, { speaker, line }) {
+  const aside = speaker === asked ? undefined : `cutting in on ${who(asked).name}`;
+  return { block: speech(speaker, line, { aside }), text: plain(speaker, line) };
+}
+
+// Gollum coveting whatever `input` asks for, or null when it names nothing.
+function coveting(quotes, input) {
+  const thing = tidy(wanted(input)).replace(/[*_~`]/g, '').trim();
+  if (!thing) return null;
+  const line = quotes.gollumWants(`*${thing}*`, input);
+  return {
+    block: speech('gollum', line, { verbatim: false }),
+    text: `${CHARACTERS.gollum.icon} Gollum: ${line.replace(/\*/g, '')}`
+  };
+}
 
 // --- Commands --------------------------------------------------------------
 
 // /frodo, /gandalf, /legolas, /gollum
 function character(quotes, key, input) {
   const about = tidy(input);
-
-  if (key === 'gollum' && about) {
-    const thing = about.replace(/[*_~`]/g, '');
-    const line = quotes.gollumWants(`*${thing}*`, input);
-    return inChannel(`${CHARACTERS.gollum.icon} Gollum: ${line.replace(/\*/g, '')}`, [
-      speech('gollum', line, { verbatim: false })
-    ]);
-  }
-
-  const quote = quotes.forSituation(key, input);
-  const blocks = [speech(key, quote)];
-  if (about) blocks.push(context(`On: ${about}`));
-  return inChannel(plain(key, quote), blocks);
+  const said = (key === 'gollum' && about && coveting(quotes, input)) || spoken(key, quotes.reply(key, input));
+  const blocks = [said.block];
+  if (about && key !== 'gollum') blocks.push(context(`On: ${about}`));
+  return inChannel(said.text, blocks);
 }
 
-// /fellowship
-function fellowship(quotes) {
-  const lines = {
-    frodo: quotes.forSituation('frodo', 'start'),
-    gandalf: quotes.forSituation('gandalf', 'decide'),
-    legolas: quotes.random('legolas'),
-    gollum: 'My precious!'
-  };
+// /fellowship [topic]
+function fellowship(quotes, input) {
+  const topic = tidy(input);
+  // Gollum joins in by coveting the topic, but only when coveting is what it
+  // calls for: "coffee" yes, "merge without tests" no.
+  const covetable = topic && quotes.bestFor(input).includes('gollum');
+  const lines = CAST.map(key =>
+    (key === 'gollum' && covetable && coveting(quotes, input)) || spoken(key, quotes.rally(key, input))
+  );
   return inChannel('The Fellowship speaks. The fellowship stands with you!', [
     header('🗡️ The Fellowship speaks'),
-    ...CAST.map(key => speech(key, lines[key])),
+    ...(topic ? [context(`On: ${topic}`)] : []),
+    ...lines.map(said => said.block),
     divider(),
     context('⚔️ The fellowship stands with you.')
   ]);
@@ -84,18 +101,28 @@ function council(quotes, input) {
   return inChannel(`The Council of Elrond weighs in on ${topic}.`, [
     header('⚔️ The Council of Elrond'),
     context(`On: ${topic}`),
-    ...members.map(key => speech(key, quotes.forSituation(key, input))),
+    ...members.map(key => spoken(key, quotes.reply(key, input)).block),
     divider(),
     context('The council has spoken.')
   ]);
 }
 
-// /versus <character> <character>
+// Every name /versus understands: "frodo", "Frodo", "smeagol", "mithrandir"...
+const NAMES = {};
+for (const [key, { name, aliases }] of Object.entries(CHARACTERS)) {
+  for (const alias of [key, name.toLowerCase(), ...aliases]) NAMES[alias] = key;
+}
+const VERSUS_FILLER = new Set(['vs', 'v', 'versus', 'and', 'against', 'x', 'or']);
+
+// /versus <character> [vs] <character>
 function versus(quotes, input) {
-  const names = String(input || '').toLowerCase().split(/\s+/).filter(Boolean);
-  const [first, second] = names;
-  if (names.length < 2 || !CHARACTERS[first] || !CHARACTERS[second]) {
-    return onlyYou(`⚠️ Usage: /versus [character] [character]\nChoose from: ${CAST.join(', ')}`);
+  // tokenize() also strips accents and punctuation: "Sméagol, Gandalf" works.
+  const names = tokenize(input).filter(word => word !== '|' && !VERSUS_FILLER.has(word));
+  const [first, second] = names.map(name => NAMES[name]);
+  if (names.length !== 2 || !first || !second || first === second) {
+    return onlyYou(
+      `⚠️ Usage: /versus frodo vs gollum\nChoose two different characters from: ${CAST.join(', ')}`
+    );
   }
   return inChannel(`Quote battle: ${CHARACTERS[first].name} vs ${CHARACTERS[second].name}`, [
     header('⚔️ Quote battle'),
@@ -122,23 +149,64 @@ function quest(quotes, input) {
   return inChannel(`A new quest begins: ${task}`, [
     header('🗡️ A new quest begins'),
     section(`📜 *Quest:* ${task}`),
-    speech('frodo', quotes.forSituation('frodo', 'start')),
+    speech('frodo', quotes.volunteer()),
     divider(),
     context('⚔️ Your fellowship awaits. Will you accept this quest?')
   ]);
 }
 
-// /lotr [text] — one command to rule them all: runs one of the others at random.
-function lotr(quotes, input) {
-  const options = [
-    ...CAST.map(key => () => character(quotes, key, input)),
-    () => fellowship(quotes),
-    () => wisdom(quotes)
-  ];
-  if (tidy(input)) {
-    options.push(() => council(quotes, input), () => quest(quotes, input));
-  }
-  return pick(options)();
+// Text that starts with one of these reads as a job to be done.
+const TASK_VERBS = new Set([
+  'add', 'audit', 'automate', 'build', 'clean', 'configure', 'create', 'debug', 'design', 'document', 'draft',
+  'finish', 'fix', 'implement', 'investigate', 'migrate', 'organise', 'organize', 'prepare', 'refactor',
+  'remove', 'rename', 'replace', 'research', 'rewrite', 'schedule', 'set', 'setup', 'test', 'triage',
+  'update', 'upgrade', 'write'
+]);
+const looksLikeTask = input => TASK_VERBS.has(tokenize(input)[0]);
+
+const HELP = [
+  ['/lotr [anything]', 'whoever fits your text best answers. With no text, a surprise'],
+  ['/frodo [situation]', 'burdens, beginnings and not being able to go on'],
+  ['/gandalf [situation]', 'a warning for risky moves, or wisdom'],
+  ['/legolas [achievement]', 'your achievement, downplayed'],
+  ['/gollum [thing]', 'Gollum covets whatever you name'],
+  ['/fellowship [topic]', 'a pep talk from all four'],
+  ['/council [topic]', 'Frodo, Gandalf and Legolas weigh in'],
+  ['/versus frodo vs gollum', 'a quote battle between two characters'],
+  ['/wisdom', 'a line worth pausing on'],
+  ['/quest [task]', 'your task, announced as a quest']
+];
+
+// /lotr help
+function help() {
+  return onlyYou(
+    ['🧙‍♂️ *Slack of the Rings*', ...HELP.map(([usage, what]) => `• \`${usage}\`  ${what}`)].join('\n')
+  );
 }
 
-module.exports = { character, fellowship, council, versus, wisdom, quest, lotr, tidy, escapeText };
+// /lotr [text] — one command to rule them all. It sends the text to whoever
+// it suits best: a character whose situation it describes, /quest when it
+// reads as a task, and otherwise a surprise.
+function lotr(quotes, input) {
+  if (/^(help|commands?|\?)$/i.test(String(input || '').trim())) return help();
+
+  if (!tidy(input)) {
+    return pick([
+      ...CAST.map(key => () => character(quotes, key, '')),
+      () => fellowship(quotes, ''),
+      () => wisdom(quotes)
+    ])();
+  }
+
+  const fitting = quotes.bestFor(input);
+  if (fitting.length > 0) return character(quotes, pick(fitting), input);
+  if (looksLikeTask(input)) return quest(quotes, input);
+
+  return pick([
+    ...['frodo', 'gandalf', 'legolas'].map(key => () => character(quotes, key, input)),
+    () => council(quotes, input),
+    () => fellowship(quotes, input)
+  ])();
+}
+
+module.exports = { character, fellowship, council, versus, wisdom, quest, lotr, help, tidy, escapeText, HELP };

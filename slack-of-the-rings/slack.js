@@ -20,7 +20,7 @@ const COMMANDS = {
     oops: '⚠️ Gollum is confused! Try again, precious...'
   },
   '/fellowship': {
-    reply: quotes => messages.fellowship(quotes),
+    reply: (quotes, text) => messages.fellowship(quotes, text),
     oops: '⚠️ The fellowship has scattered! Try again!'
   },
   '/council': {
