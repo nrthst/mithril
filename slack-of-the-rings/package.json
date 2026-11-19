@@ -1,0 +1,27 @@
+{
+  "name": "slack-of-the-rings",
+  "version": "1.0.0",
+  "description": "A Lord of the Rings themed Slack bot: ten slash commands that answer with fitting Middle-earth quotes. An unofficial fan project.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "setup": "node setup.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "slack",
+    "bot",
+    "lotr",
+    "lord-of-the-rings"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@slack/bolt": "^3.17.1",
+    "axios": "^1.6.5",
+    "dotenv": "^16.4.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "display_information": {
+    "name": "Slack of the Rings",
+    "description": "Middle-earth quotes for every occasion. An unofficial fan project.",
+    "background_color": "#2c3e2d"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Slack of the Rings",
+      "always_online": false
+    },
+    "slash_commands": [
+      { "command": "/lotr", "description": "One command to rule them all: a random reply", "usage_hint": "[anything]", "should_escape": false },
+      { "command": "/frodo", "description": "Frodo responds to your situation", "usage_hint": "[what's going on]", "should_escape": false },
+      { "command": "/gandalf", "description": "Gandalf offers wisdom or a warning", "usage_hint": "[what you're about to do]", "should_escape": false },
+      { "command": "/legolas", "description": "Legolas downplays your achievement", "usage_hint": "[what you achieved]", "should_escape": false },
+      { "command": "/gollum", "description": "Gollum covets whatever you want", "usage_hint": "[the thing you want]", "should_escape": false },
+      { "command": "/fellowship", "description": "A pep talk from the whole fellowship", "should_escape": false },
+      { "command": "/council", "description": "The Council of Elrond weighs in", "usage_hint": "[topic]", "should_escape": false },
+      { "command": "/versus", "description": "Quote battle between two characters", "usage_hint": "[frodo|gandalf|legolas|gollum] [frodo|gandalf|legolas|gollum]", "should_escape": false },
+      { "command": "/wisdom", "description": "Wisdom from Middle-earth", "should_escape": false },
+      { "command": "/quest", "description": "Turn your task into an epic quest", "usage_hint": "[task]", "should_escape": false }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": ["commands"]
+    }
+  },
+  "settings": {
+    "interactivity": { "is_enabled": false },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false
+  }
+}
